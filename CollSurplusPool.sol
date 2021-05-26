@@ -4,12 +4,12 @@ pragma solidity 0.6.11;
 
 import "./Interfaces/ICollSurplusPool.sol";
 import "./Dependencies/SafeMath.sol";
-import "./Dependencies/Ownable.sol";
+import "./Dependencies/OwnableUpgradeable.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
 
-contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
+contract CollSurplusPool is OwnableUpgradeable, CheckContract, ICollSurplusPool {
     using SafeMath for uint256;
 
     string constant public NAME = "CollSurplusPool";
@@ -34,6 +34,10 @@ contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
     
     // --- Contract setters ---
 
+    function initialize() public initializer {
+        __Ownable_init();
+    }
+
     function setAddresses(
         address _borrowerOperationsAddress,
         address _troveManagerAddress,
@@ -55,7 +59,7 @@ contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
         emit TroveManagerAddressChanged(_troveManagerAddress);
         emit ActivePoolAddressChanged(_activePoolAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     /* Returns the ETH state variable at ActivePool address.

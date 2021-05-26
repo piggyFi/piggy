@@ -10,11 +10,11 @@ import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/ILQTYToken.sol";
 import "./Interfaces/ILQTYStaking.sol";
 import "./Dependencies/LiquityBase.sol";
-import "./Dependencies/Ownable.sol";
+import "./Dependencies/OwnableUpgradeable.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
-contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
+contract TroveManager is LiquityBase, OwnableUpgradeable, CheckContract, ITroveManager {
     string constant public NAME = "TroveManager";
 
     // --- Connected contract declarations ---
@@ -231,6 +231,10 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
 
     // --- Dependency setter ---
 
+    function initialize() public initializer {
+        __Ownable_init();
+    }
+
     function setAddresses(
         address _borrowerOperationsAddress,
         address _activePoolAddress,
@@ -284,7 +288,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         emit LQTYTokenAddressChanged(_lqtyTokenAddress);
         emit LQTYStakingAddressChanged(_lqtyStakingAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // --- Getters ---
@@ -719,7 +723,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
                 // Update aggregate trackers
                 vars.remainingLUSDInStabPool = vars.remainingLUSDInStabPool.sub(singleLiquidation.debtToOffset);
                 vars.entireSystemDebt = vars.entireSystemDebt.sub(singleLiquidation.debtToOffset);
-                vars.entireSystemColl = vars.entireSystemColl.sub(singleLiquidation.collToSendToSP);
+                vars.entireSystemColl = vars.entireSystemColl.sub(singleLiquidation.collToSendToSP).sub(singleLiquidation.collSurplus);
 
                 // Add liquidation values to their respective running totals
                 totals = _addLiquidationValuesToTotals(totals, singleLiquidation);

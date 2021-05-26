@@ -4,7 +4,7 @@ pragma solidity 0.6.11;
 
 import './Interfaces/IActivePool.sol';
 import "./Dependencies/SafeMath.sol";
-import "./Dependencies/Ownable.sol";
+import "./Dependencies/OwnableUpgradeable.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
@@ -15,7 +15,7 @@ import "./Dependencies/console.sol";
  * Stability Pool, the Default Pool, or both, depending on the liquidation conditions.
  *
  */
-contract ActivePool is Ownable, CheckContract, IActivePool {
+contract ActivePool is OwnableUpgradeable, CheckContract, IActivePool {
     using SafeMath for uint256;
 
     string constant public NAME = "ActivePool";
@@ -35,6 +35,10 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
     event ActivePoolETHBalanceUpdated(uint _ETH);
 
     // --- Contract setters ---
+
+    function initialize() public initializer {
+        __Ownable_init();
+    }
 
     function setAddresses(
         address _borrowerOperationsAddress,
@@ -60,7 +64,7 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
         emit StabilityPoolAddressChanged(_stabilityPoolAddress);
         emit DefaultPoolAddressChanged(_defaultPoolAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // --- Getters for public variables. Required by IPool interface ---

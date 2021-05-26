@@ -6,6 +6,7 @@ import "./Interfaces/ILUSDToken.sol";
 import "./Dependencies/SafeMath.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
+import "./Dependencies/Initializable.sol";
 /*
 *
 * Based upon OpenZeppelin's ERC20 contract:
@@ -24,12 +25,12 @@ import "./Dependencies/console.sol";
 * 2) sendToPool() and returnFromPool(): functions callable only Liquity core contracts, which move LUSD tokens between Liquity <-> user.
 */
 
-contract LUSDToken is CheckContract, ILUSDToken {
+contract LUSDToken is CheckContract, ILUSDToken, Initializable {
     using SafeMath for uint256;
     
     uint256 private _totalSupply;
-    string constant internal _NAME = "LUSD Stablecoin";
-    string constant internal _SYMBOL = "LUSD";
+    string constant internal _NAME = "PUSD Stablecoin";
+    string constant internal _SYMBOL = "PUSD";
     string constant internal _VERSION = "1";
     uint8 constant internal _DECIMALS = 18;
     
@@ -42,11 +43,11 @@ contract LUSDToken is CheckContract, ILUSDToken {
 
     // Cache the domain separator as an immutable value, but also store the chain id that it corresponds to, in order to
     // invalidate the cached domain separator if the chain id changes.
-    bytes32 private immutable _CACHED_DOMAIN_SEPARATOR;
-    uint256 private immutable _CACHED_CHAIN_ID;
+    bytes32 private _CACHED_DOMAIN_SEPARATOR;
+    uint256 private _CACHED_CHAIN_ID;
 
-    bytes32 private immutable _HASHED_NAME;
-    bytes32 private immutable _HASHED_VERSION;
+    bytes32 private _HASHED_NAME;
+    bytes32 private _HASHED_VERSION;
     
     mapping (address => uint256) private _nonces;
     
@@ -55,22 +56,23 @@ contract LUSDToken is CheckContract, ILUSDToken {
     mapping (address => mapping (address => uint256)) private _allowances;  
     
     // --- Addresses ---
-    address public immutable troveManagerAddress;
-    address public immutable stabilityPoolAddress;
-    address public immutable borrowerOperationsAddress;
+    address public troveManagerAddress;
+    address public stabilityPoolAddress;
+    address public borrowerOperationsAddress;
     
     // --- Events ---
     event TroveManagerAddressChanged(address _troveManagerAddress);
     event StabilityPoolAddressChanged(address _newStabilityPoolAddress);
     event BorrowerOperationsAddressChanged(address _newBorrowerOperationsAddress);
 
-    constructor
+    function initialize
     ( 
         address _troveManagerAddress,
         address _stabilityPoolAddress,
         address _borrowerOperationsAddress
     ) 
-        public 
+        public
+        initializer
     {  
         checkContract(_troveManagerAddress);
         checkContract(_stabilityPoolAddress);

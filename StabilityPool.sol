@@ -12,7 +12,7 @@ import "./Interfaces/ICommunityIssuance.sol";
 import "./Dependencies/LiquityBase.sol";
 import "./Dependencies/SafeMath.sol";
 import "./Dependencies/LiquitySafeMath128.sol";
-import "./Dependencies/Ownable.sol";
+import "./Dependencies/OwnableUpgradeable.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
@@ -145,7 +145,7 @@ import "./Dependencies/console.sol";
  * The product P (and snapshot P_t) is re-used, as the ratio P/P_t tracks a deposit's depletion due to liquidations.
  *
  */
-contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
+contract StabilityPool is LiquityBase, OwnableUpgradeable, CheckContract, IStabilityPool {
     using LiquitySafeMath128 for uint128;
 
     string constant public NAME = "StabilityPool";
@@ -199,7 +199,7 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
     * During its lifetime, a deposit's value evolves from d_t to d_t * P / P_t , where P_t
     * is the snapshot of P taken at the instant the deposit was made. 18-digit decimal.
     */
-    uint public P = DECIMAL_PRECISION;
+    uint public P;
 
     uint public constant SCALE_FACTOR = 1e9;
 
@@ -269,6 +269,11 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
 
     // --- Contract setters ---
 
+    function initialize() public initializer {
+        __Ownable_init();
+        P = DECIMAL_PRECISION;
+    }
+
     function setAddresses(
         address _borrowerOperationsAddress,
         address _troveManagerAddress,
@@ -306,7 +311,7 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
         emit PriceFeedAddressChanged(_priceFeedAddress);
         emit CommunityIssuanceAddressChanged(_communityIssuanceAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // --- Getters for public variables. Required by IPool interface ---

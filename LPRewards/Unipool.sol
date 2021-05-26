@@ -4,7 +4,7 @@ pragma solidity 0.6.11;
 
 import "../Dependencies/LiquityMath.sol";
 import "../Dependencies/SafeMath.sol";
-import "../Dependencies/Ownable.sol";
+import "../Dependencies/OwnableUpgradeable.sol";
 import "../Dependencies/CheckContract.sol";
 import "../Interfaces/ILQTYToken.sol";
 import "./Dependencies/SafeERC20.sol";
@@ -71,14 +71,14 @@ contract LPTokenWrapper is ILPTokenWrapper {
  * either LQTY token contract is deployed, and therefore LQTY tokens are minted to Unipool contract,
  * or first liquidity provider stakes UNIv2 LP tokens into it.
  */
-contract Unipool is LPTokenWrapper, Ownable, CheckContract, IUnipool {
+contract Unipool is LPTokenWrapper, OwnableUpgradeable, CheckContract, IUnipool {
     string constant public NAME = "Unipool";
 
     uint256 public duration;
     ILQTYToken public lqtyToken;
 
-    uint256 public periodFinish = 0;
-    uint256 public rewardRate = 0;
+    uint256 public periodFinish;
+    uint256 public rewardRate;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
     mapping(address => uint256) public userRewardPerTokenPaid;
@@ -92,6 +92,12 @@ contract Unipool is LPTokenWrapper, Ownable, CheckContract, IUnipool {
     event RewardPaid(address indexed user, uint256 reward);
 
     // initialization function
+    function initialize() public initializer {
+        __Ownable_init();
+        periodFinish = 0;
+        rewardRate = 0;
+    }
+
     function setParams(
         address _lqtyTokenAddress,
         address _uniTokenAddress,
@@ -113,7 +119,7 @@ contract Unipool is LPTokenWrapper, Ownable, CheckContract, IUnipool {
         emit LQTYTokenAddressChanged(_lqtyTokenAddress);
         emit UniTokenAddressChanged(_uniTokenAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // Returns current timestamp if the rewards program has not finished yet, end time otherwise

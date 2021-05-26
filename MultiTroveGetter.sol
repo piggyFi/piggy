@@ -5,9 +5,10 @@ pragma experimental ABIEncoderV2;
 
 import "./TroveManager.sol";
 import "./SortedTroves.sol";
+import "./Dependencies/Initializable.sol";
 
 /*  Helper contract for grabbing Trove data for the front end. Not part of the core Liquity system. */
-contract MultiTroveGetter {
+contract MultiTroveGetter is Initializable {
     struct CombinedTroveData {
         address owner;
 
@@ -22,7 +23,7 @@ contract MultiTroveGetter {
     TroveManager public troveManager; // XXX Troves missing from ITroveManager?
     ISortedTroves public sortedTroves;
 
-    constructor(TroveManager _troveManager, ISortedTroves _sortedTroves) public {
+    function initialize(TroveManager _troveManager, ISortedTroves _sortedTroves) public initializer {
         troveManager = _troveManager;
         sortedTroves = _sortedTroves;
     }

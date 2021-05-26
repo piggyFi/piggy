@@ -5,26 +5,6 @@ pragma solidity 0.6.11;
 import "../LQTY/LQTYToken.sol";
 
 contract LQTYTokenTester is LQTYToken {
-    constructor
-    (
-        address _communityIssuanceAddress, 
-        address _lqtyStakingAddress,
-        address _lockupFactoryAddress,
-        address _bountyAddress,
-        address _lpRewardsAddress,
-        address _multisigAddress
-    ) 
-        public 
-        LQTYToken 
-    (
-        _communityIssuanceAddress,
-        _lqtyStakingAddress,
-        _lockupFactoryAddress,
-        _bountyAddress,
-        _lpRewardsAddress,
-        _multisigAddress
-    )
-    {} 
 
     function unprotectedMint(address account, uint256 amount) external {
         // No check for the caller here
@@ -35,7 +15,7 @@ contract LQTYTokenTester is LQTYToken {
     function unprotectedSendToLQTYStaking(address _sender, uint256 _amount) external {
         // No check for the caller here
         
-        if (_isFirstYear()) {_requireSenderIsNotMultisig(_sender);}
+        if (_isHalfYear()) {_requireSenderHasNoLockPeriod(_sender);}
         _transfer(_sender, lqtyStakingAddress, _amount);
     }
 

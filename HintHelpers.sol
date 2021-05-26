@@ -5,10 +5,10 @@ pragma solidity 0.6.11;
 import "./Interfaces/ITroveManager.sol";
 import "./Interfaces/ISortedTroves.sol";
 import "./Dependencies/LiquityBase.sol";
-import "./Dependencies/Ownable.sol";
+import "./Dependencies/OwnableUpgradeable.sol";
 import "./Dependencies/CheckContract.sol";
 
-contract HintHelpers is LiquityBase, Ownable, CheckContract {
+contract HintHelpers is LiquityBase, OwnableUpgradeable, CheckContract {
     string constant public NAME = "HintHelpers";
 
     ISortedTroves public sortedTroves;
@@ -20,6 +20,10 @@ contract HintHelpers is LiquityBase, Ownable, CheckContract {
     event TroveManagerAddressChanged(address _troveManagerAddress);
 
     // --- Dependency setters ---
+
+    function initialize() public initializer {
+        __Ownable_init();
+    }
 
     function setAddresses(
         address _sortedTrovesAddress,
@@ -37,7 +41,7 @@ contract HintHelpers is LiquityBase, Ownable, CheckContract {
         emit SortedTrovesAddressChanged(_sortedTrovesAddress);
         emit TroveManagerAddressChanged(_troveManagerAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // --- Functions ---

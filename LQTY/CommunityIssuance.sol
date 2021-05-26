@@ -6,12 +6,12 @@ import "../Interfaces/ILQTYToken.sol";
 import "../Interfaces/ICommunityIssuance.sol";
 import "../Dependencies/BaseMath.sol";
 import "../Dependencies/LiquityMath.sol";
-import "../Dependencies/Ownable.sol";
+import "../Dependencies/OwnableUpgradeable.sol";
 import "../Dependencies/CheckContract.sol";
 import "../Dependencies/SafeMath.sol";
 
 
-contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMath {
+contract CommunityIssuance is ICommunityIssuance, OwnableUpgradeable, CheckContract, BaseMath {
     using SafeMath for uint;
 
     // --- Data ---
@@ -40,16 +40,16 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
     * The community LQTY supply cap is the starting balance of the Community Issuance contract.
     * It should be minted to this contract by LQTYToken, when the token is deployed.
     * 
-    * Set to 32M (slightly less than 1/3) of total LQTY supply.
+    * Set to 47.5M of total LQTY supply.
     */
-    uint constant public LQTYSupplyCap = 32e24; // 32 million
+    uint public LQTYSupplyCap; // 47.5 million
 
     ILQTYToken public lqtyToken;
 
     address public stabilityPoolAddress;
 
     uint public totalLQTYIssued;
-    uint public immutable deploymentTime;
+    uint public deploymentTime;
 
     // --- Events ---
 
@@ -59,7 +59,8 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
 
     // --- Functions ---
 
-    constructor() public {
+    function initialize() public initializer {
+        __Ownable_init();
         deploymentTime = block.timestamp;
     }
 
@@ -79,13 +80,15 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
         stabilityPoolAddress = _stabilityPoolAddress;
 
         // When LQTYToken deployed, it should have transferred CommunityIssuance's LQTY entitlement
+        LQTYSupplyCap = lqtyToken.getCommunityIssuanceEntitlement();
+        assert(LQTYSupplyCap > 0);
         uint LQTYBalance = lqtyToken.balanceOf(address(this));
-        assert(LQTYBalance >= LQTYSupplyCap);
+        assert(LQTYBalance == LQTYSupplyCap);
 
         emit LQTYTokenAddressSet(_lqtyTokenAddress);
         emit StabilityPoolAddressSet(_stabilityPoolAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     function issueLQTY() external override returns (uint) {

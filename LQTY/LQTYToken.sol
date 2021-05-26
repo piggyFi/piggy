@@ -7,6 +7,7 @@ import "../Dependencies/SafeMath.sol";
 import "../Interfaces/ILQTYToken.sol";
 import "../Interfaces/ILockupContractFactory.sol";
 import "../Dependencies/console.sol";
+import "../Dependencies/Initializable.sol";
 
 /*
 * Based upon OpenZeppelin's ERC20 contract:
@@ -28,32 +29,38 @@ import "../Dependencies/console.sol";
 *
 * 4) CommunityIssuance and LockupContractFactory addresses are set at deployment
 *
-* 5) The bug bounties / hackathons allocation of 2 million tokens is minted at deployment to an EOA
-
-* 6) 32 million tokens are minted at deployment to the CommunityIssuance contract
+* 5) The contributor mining allocation of 10 million tokens is minted at deployment to an EOA
 *
-* 7) The LP rewards allocation of (1 + 1/3) million tokens is minted at deployent to a Staking contract
+* 6) The treasury allocation of 3 million tokens are minted at deployment to the Liquity treasury multisig
 *
-* 8) (64 + 2/3) million tokens are minted at deployment to the Liquity multisig
+* 7) The airdrop allocation of 2 million tokens are minted at deployment to the Liquity airdrop multisig
 *
-* 9) Until one year from deployment:
-* -Liquity multisig may only transfer() tokens to LockupContracts that have been deployed via & registered in the 
+* 8) 47.5 million tokens are minted at deployment to the CommunityIssuance contract
+*
+* 9) The LP rewards allocation of 7.5 million tokens is minted at deployent to the Liquity LP multisig
+*
+* 10) 10 million tokens are minted at deployment to the Liquity investor multisig
+*
+* 11) 20 million tokens are minted at deployment to the Liquity team multisig
+*
+* 12) Until half year from deployment:
+* -Liquity team & investor multisig may only transfer() tokens to LockupContracts that have been deployed via & registered in the 
 *  LockupContractFactory 
 * -approve(), increaseAllowance(), decreaseAllowance() revert when called by the multisig
 * -transferFrom() reverts when the multisig is the sender
 * -sendToLQTYStaking() reverts when the multisig is the sender, blocking the multisig from staking its LQTY.
 * 
-* After one year has passed since deployment of the LQTYToken, the restrictions on multisig operations are lifted
+* After half year has passed since deployment of the LQTYToken, the restrictions on multisig operations are lifted
 * and the multisig has the same rights as any other address.
 */
 
-contract LQTYToken is CheckContract, ILQTYToken {
+contract LQTYToken is CheckContract, ILQTYToken, Initializable {
     using SafeMath for uint256;
 
     // --- ERC20 Data ---
 
-    string constant internal _NAME = "LQTY";
-    string constant internal _SYMBOL = "LQTY";
+    string constant internal _NAME = "PIGGY";
+    string constant internal _SYMBOL = "PIGGY";
     string constant internal _VERSION = "1";
     uint8 constant internal  _DECIMALS = 18;
 
@@ -70,30 +77,32 @@ contract LQTYToken is CheckContract, ILQTYToken {
 
     // Cache the domain separator as an immutable value, but also store the chain id that it corresponds to, in order to
     // invalidate the cached domain separator if the chain id changes.
-    bytes32 private immutable _CACHED_DOMAIN_SEPARATOR;
-    uint256 private immutable _CACHED_CHAIN_ID;
+    bytes32 private _CACHED_DOMAIN_SEPARATOR;
+    uint256 private _CACHED_CHAIN_ID;
 
-    bytes32 private immutable _HASHED_NAME;
-    bytes32 private immutable _HASHED_VERSION;
+    bytes32 private _HASHED_NAME;
+    bytes32 private _HASHED_VERSION;
     
     mapping (address => uint256) private _nonces;
 
     // --- LQTYToken specific data ---
 
-    uint public constant ONE_YEAR_IN_SECONDS = 31536000;  // 60 * 60 * 24 * 365
+    uint public constant HALF_YEAR_IN_SECONDS = 15552000;  // 60 * 60 * 24 * 180
 
     // uint for use with SafeMath
-    uint internal _1_MILLION = 1e24;    // 1e6 * 1e18 = 1e24
+    uint internal constant _1_MILLION = 1e24;    // 1e6 * 1e18 = 1e24
 
-    uint internal immutable deploymentStartTime;
-    address public immutable multisigAddress;
+    uint internal deploymentStartTime;
+    address public teamAddress;
+    address public investorAddress;
 
-    address public immutable communityIssuanceAddress;
-    address public immutable lqtyStakingAddress;
+    address public communityIssuanceAddress;
+    address public lqtyStakingAddress;
 
-    uint internal immutable lpRewardsEntitlement;
+    uint internal lpRewardsEntitlement;
+    uint internal communityIssuanceEntitlement;
 
-    ILockupContractFactory public immutable lockupContractFactory;
+    ILockupContractFactory public lockupContractFactory;
 
     // --- Events ---
 
@@ -103,22 +112,27 @@ contract LQTYToken is CheckContract, ILQTYToken {
 
     // --- Functions ---
 
-    constructor
+    function initialize
     (
         address _communityIssuanceAddress, 
         address _lqtyStakingAddress,
         address _lockupFactoryAddress,
-        address _bountyAddress,
         address _lpRewardsAddress,
-        address _multisigAddress
+        address _contributorMiningAddress,
+        address _treasuryAddress,
+        address _airdropAddress,
+        address _teamAddress,
+        address _investorAddress
     ) 
-        public 
+        public
+        initializer
     {
         checkContract(_communityIssuanceAddress);
         checkContract(_lqtyStakingAddress);
         checkContract(_lockupFactoryAddress);
 
-        multisigAddress = _multisigAddress;
+        teamAddress = _teamAddress;
+        investorAddress = _investorAddress;
         deploymentStartTime  = block.timestamp;
         
         communityIssuanceAddress = _communityIssuanceAddress;
@@ -135,23 +149,21 @@ contract LQTYToken is CheckContract, ILQTYToken {
         
         // --- Initial LQTY allocations ---
      
-        uint bountyEntitlement = _1_MILLION.mul(2); // Allocate 2 million for bounties/hackathons
-        _mint(_bountyAddress, bountyEntitlement);
+        _mint(_contributorMiningAddress, _1_MILLION.mul(10)); // Allocate 10 million for contributor mining
 
-        uint depositorsAndFrontEndsEntitlement = _1_MILLION.mul(32); // Allocate 32 million to the algorithmic issuance schedule
-        _mint(_communityIssuanceAddress, depositorsAndFrontEndsEntitlement);
+        communityIssuanceEntitlement = _1_MILLION.mul(475).div(10); // Allocate 47.5 million to the algorithmic issuance schedule
+        _mint(_communityIssuanceAddress, communityIssuanceEntitlement); 
 
-        uint _lpRewardsEntitlement = _1_MILLION.mul(4).div(3);  // Allocate 1.33 million for LP rewards
-        lpRewardsEntitlement = _lpRewardsEntitlement;
-        _mint(_lpRewardsAddress, _lpRewardsEntitlement);
-        
-        // Allocate the remainder to the LQTY Multisig: (100 - 2 - 32 - 1.33) million = 64.66 million
-        uint multisigEntitlement = _1_MILLION.mul(100)
-            .sub(bountyEntitlement)
-            .sub(depositorsAndFrontEndsEntitlement)
-            .sub(_lpRewardsEntitlement);
+        lpRewardsEntitlement = _1_MILLION.mul(75).div(10); // Allocate 7.5 million for LP rewards
+        _mint(_lpRewardsAddress, lpRewardsEntitlement);
 
-        _mint(_multisigAddress, multisigEntitlement);
+        _mint(_treasuryAddress, _1_MILLION.mul(3)); // Allocate 3 million for treasury
+
+        _mint(_airdropAddress, _1_MILLION.mul(2)); // Allocate 2 million for airdrop
+
+        _mint(_investorAddress, _1_MILLION.mul(10)); // Allocate 10 million for investor
+
+        _mint(_teamAddress, _1_MILLION.mul(20)); // Allocate the remainder 20 million to the team
     }
 
     // --- External functions ---
@@ -172,9 +184,13 @@ contract LQTYToken is CheckContract, ILQTYToken {
         return lpRewardsEntitlement;
     }
 
+    function getCommunityIssuanceEntitlement() external view override returns (uint256) {
+        return communityIssuanceEntitlement;
+    }
+
     function transfer(address recipient, uint256 amount) external override returns (bool) {
-        // Restrict the multisig's transfers in first year
-        if (_callerIsMultisig() && _isFirstYear()) {
+        // Restrict the multisig's transfers in first half year
+        if (_callerHasLockPeriod() && _isHalfYear()) {
             _requireRecipientIsRegisteredLC(recipient);
         }
 
@@ -190,14 +206,14 @@ contract LQTYToken is CheckContract, ILQTYToken {
     }
 
     function approve(address spender, uint256 amount) external override returns (bool) {
-        if (_isFirstYear()) { _requireCallerIsNotMultisig(); }
+        if (_isHalfYear()) { _requireCallerHasNoLockPeriod(); }
 
         _approve(msg.sender, spender, amount);
         return true;
     }
 
     function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
-        if (_isFirstYear()) { _requireSenderIsNotMultisig(sender); }
+        if (_isHalfYear()) { _requireSenderHasNoLockPeriod(sender); }
         
         _requireValidRecipient(recipient);
 
@@ -207,14 +223,14 @@ contract LQTYToken is CheckContract, ILQTYToken {
     }
 
     function increaseAllowance(address spender, uint256 addedValue) external override returns (bool) {
-        if (_isFirstYear()) { _requireCallerIsNotMultisig(); }
+        if (_isHalfYear()) { _requireCallerHasNoLockPeriod(); }
         
         _approve(msg.sender, spender, _allowances[msg.sender][spender].add(addedValue));
         return true;
     }
 
     function decreaseAllowance(address spender, uint256 subtractedValue) external override returns (bool) {
-        if (_isFirstYear()) { _requireCallerIsNotMultisig(); }
+        if (_isHalfYear()) { _requireCallerHasNoLockPeriod(); }
         
         _approve(msg.sender, spender, _allowances[msg.sender][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
         return true;
@@ -222,7 +238,7 @@ contract LQTYToken is CheckContract, ILQTYToken {
 
     function sendToLQTYStaking(address _sender, uint256 _amount) external override {
         _requireCallerIsLQTYStaking();
-        if (_isFirstYear()) { _requireSenderIsNotMultisig(_sender); }  // Prevent the multisig from staking LQTY
+        if (_isHalfYear()) { _requireSenderHasNoLockPeriod(_sender); }  // Prevent the team & investor from staking LQTY
         _transfer(_sender, lqtyStakingAddress, _amount);
     }
 
@@ -302,12 +318,12 @@ contract LQTYToken is CheckContract, ILQTYToken {
     
     // --- Helper functions ---
 
-    function _callerIsMultisig() internal view returns (bool) {
-        return (msg.sender == multisigAddress);
+    function _callerHasLockPeriod() internal view returns (bool) {
+        return (msg.sender == teamAddress || msg.sender == investorAddress);
     }
 
-    function _isFirstYear() internal view returns (bool) {
-        return (block.timestamp.sub(deploymentStartTime) < ONE_YEAR_IN_SECONDS);
+    function _isHalfYear() internal view returns (bool) {
+        return (block.timestamp.sub(deploymentStartTime) < HALF_YEAR_IN_SECONDS);
     }
 
     // --- 'require' functions ---
@@ -330,12 +346,12 @@ contract LQTYToken is CheckContract, ILQTYToken {
         "LQTYToken: recipient must be a LockupContract registered in the Factory");
     }
 
-    function _requireSenderIsNotMultisig(address _sender) internal view {
-        require(_sender != multisigAddress, "LQTYToken: sender must not be the multisig");
+    function _requireSenderHasNoLockPeriod(address _sender) internal view {
+        require(_sender != teamAddress && _sender != investorAddress, "LQTYToken: sender must not be the multisig");
     }
 
-    function _requireCallerIsNotMultisig() internal view {
-        require(!_callerIsMultisig(), "LQTYToken: caller must not be the multisig");
+    function _requireCallerHasNoLockPeriod() internal view {
+        require(!_callerHasLockPeriod(), "LQTYToken: caller must not be the multisig");
     }
 
     function _requireCallerIsLQTYStaking() internal view {

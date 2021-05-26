@@ -6,7 +6,7 @@ import "./Interfaces/IPriceFeed.sol";
 import "./Interfaces/ITellorCaller.sol";
 import "./Dependencies/AggregatorV3Interface.sol";
 import "./Dependencies/SafeMath.sol";
-import "./Dependencies/Ownable.sol";
+import "./Dependencies/OwnableUpgradeable.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/BaseMath.sol";
 import "./Dependencies/LiquityMath.sol";
@@ -20,7 +20,7 @@ import "./Dependencies/console.sol";
 * switching oracles based on oracle failures, timeouts, and conditions for returning to the primary
 * Chainlink oracle.
 */
-contract PriceFeed is Ownable, CheckContract, BaseMath, IPriceFeed {
+contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
     using SafeMath for uint256;
 
     string constant public NAME = "PriceFeed";
@@ -83,6 +83,10 @@ contract PriceFeed is Ownable, CheckContract, BaseMath, IPriceFeed {
     event PriceFeedStatusChanged(Status newStatus);
 
     // --- Dependency setters ---
+
+    function initialize() public initializer {
+        __Ownable_init();
+    }
     
     function setAddresses(
         address _priceAggregatorAddress,
@@ -109,7 +113,7 @@ contract PriceFeed is Ownable, CheckContract, BaseMath, IPriceFeed {
 
         _storeChainlinkPrice(chainlinkResponse);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // --- Functions ---
@@ -130,7 +134,7 @@ contract PriceFeed is Ownable, CheckContract, BaseMath, IPriceFeed {
         // Get current and previous price data from Chainlink, and current price data from Tellor
         ChainlinkResponse memory chainlinkResponse = _getCurrentChainlinkResponse();
         ChainlinkResponse memory prevChainlinkResponse = _getPrevChainlinkResponse(chainlinkResponse.roundId, chainlinkResponse.decimals);
-        TellorResponse memory tellorResponse = _getCurrentTellorResponse();
+        TellorResponse memory tellorResponse;
 
         // --- CASE 1: System fetched last price from Chainlink  ---
         if (status == Status.chainlinkWorking) {
